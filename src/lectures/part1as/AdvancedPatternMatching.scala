@@ -19,6 +19,7 @@ object AdvancedPatternMatching extends App {
   class Person(val name: String, val age: Int)
 
   // Making my class compatible with Pattern Matching, without making it a case Class
+  // We can define our own patterns
 
   // 1. Create an Companion Object (Singleton object that could have any name) that implements unapply method
 
@@ -37,6 +38,7 @@ object AdvancedPatternMatching extends App {
   val greeting = bob match {
 //    case PersonPattern(n, a) => s"Hi, my name is $n and I am $a years old"
     case Person(n, a) => s"Hi, my name is $n and I am $a years old"
+    case Person(n, _) => s"Hi, I am $n"
     case _ => "I don't know who I am"
   }
 
@@ -85,6 +87,69 @@ object AdvancedPatternMatching extends App {
 
   println(mathPropertyFinal)
 
+  // Infix patters
+  case class Or[A, B](a: A, b: B)
+  val either = Or(2, "two")
+  val humanDescription = either match {
+//    case Or(number, string) => s"$number is written as $string"
+    case number Or string => s"$number is written as $string"
+  }
 
+  println(humanDescription)
 
+  // Decomposing sequences
+  val vararg = numbers match {
+    case List(1, _*) => "Starting with 1"
+  }
+
+  println(vararg)
+
+  abstract class MyList[+A] {
+    def head: A = ???
+    def tail: MyList[A] = ???
+  }
+
+  case object Empty extends MyList[Nothing]
+  case class Cons[+A](override val head: A, override val tail: MyList[A]) extends MyList[A]
+
+  object MyList {
+    // Basically what we are doing here is turning a list of type A elements into a option of sequence of type A elements in the same order
+    // unapplySeq provides support to _*
+    // We could implement as well unapply, but unapply does not provides support to _* patterns
+    def unapplySeq[A](list: MyList[A]): Option[Seq[A]] =
+      if (list == Empty) Some (Seq.empty)
+      else unapplySeq(list.tail).map(list.head +: _) // list.head prepended with whatever I am putting inside
+  }
+
+  val myList: MyList[Int] = Cons(1, Cons(2, Cons(3, Cons(4, Empty))))
+  val decomposed = myList match {
+    case MyList(1, 2, _*) => "Starting with 1, 2"
+    case _ => "Something else"
+  }
+
+  println(decomposed)
+
+  // Custom types for unapply or unapplySeq
+  // We can return custom types, not only Optional as far they are implementing:
+  //  isEmpty: Boolean
+  //  get: Something
+
+  abstract class Wrapper[T] {
+    def isEmpty: Boolean
+    def get: T
+  }
+
+  object PersonWrapper {
+    def unapply(person: Person): Wrapper[String] = new Wrapper[String] {
+      override def isEmpty: Boolean = false
+      override def get: String = person.name
+    }
+  }
+
+  val personWrapper = bob match {
+    case PersonWrapper(n) => s"this person name is $n"
+    case _ => "An alien"
+  }
+
+  println(personWrapper)
 }
