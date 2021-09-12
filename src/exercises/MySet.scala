@@ -62,26 +62,43 @@ case class EmptySet[A]() extends MySet[A] {
 
   override def &(anotherSet: MySet[A]): MySet[A] = this
 
-  override def unary_! : MySet[A] = AllInclusiveSet()
+  override def unary_! : MySet[A] = PropertyBasedSet[A](_ => true)
 }
 
-// A All Inclusive Set is infinitive
-case class AllInclusiveSet[A]() extends MySet[A] {
-  override def contains(elem: A): Boolean = true
-  override def +(elem: A): MySet[A] = this
-  override def ++(anotherSet: MySet[A]): MySet[A] = this
-  override def map[B](f: A => B): MySet[B] = ???
-  override def flatMap[B](f: A => MySet[B]): MySet[B] = ???
-  override def filter(predicate: A => Boolean): MySet[A] = ??? // Property-based Set
-  override def foreach(f: A => Unit): Unit = ???
-  override def -(elem: A): MySet[A] = ???
+// All elements of type A which satisfy a property
+// { x in A | property(x)}
+// Potentially infinite Set
+case class PropertyBasedSet[A](property: A => Boolean) extends MySet[A] {
+  override def contains(elem: A): Boolean = property(elem)
+
+  // { x in A | property(x)} + element = {x in A | property(x) || x == element}
+  override def +(elem: A): MySet[A] =
+    PropertyBasedSet[A](x => property(x) || x == elem)
+
+  // { x in A | property(x)} + set = {x in A | property(x) || set contains x }
+  override def ++(anotherSet: MySet[A]): MySet[A] =
+    PropertyBasedSet[A](x => property(x) || anotherSet(x)) // Remember the apply method of MySet implements contains
+
+  // If we map an infinite set with a function we won't be able to check if the result is fine or not
+  // We are not able to say if the element is inside the Set or not, which breaks the whole point of a Set
+  override def map[B](f: A => B): MySet[B] = politelyFail
+
+  override def flatMap[B](f: A => MySet[B]): MySet[B] = politelyFail
+
+  override def filter(predicate: A => Boolean): MySet[A] = PropertyBasedSet[A](x => property(x) && predicate(x))
+
+  override def foreach(f: A => Unit): Unit = politelyFail
+
+  override def -(elem: A): MySet[A] = filter(x => x != elem)
+
   override def --(anotherSet: MySet[A]): MySet[A] = filter(!anotherSet)
-  override def &(anotherSet: MySet[A]): MySet[A] = filter(anotherSet)
-  override def unary_! : MySet[A] = NonEmptySet[A]
-}
 
-// This getting too much complicated for implementing the negate of a set
-// Better approach : PropertyBasedSet[A]
+  override def &(anotherSet: MySet[A]): MySet[A] = filter(anotherSet)
+
+  override def unary_! : MySet[A] = PropertyBasedSet[A](x => !property(x))
+
+  def politelyFail = throw new IllegalArgumentException("Really deep rabbit hole!")
+}
 
 case class NonEmptySet[A](head: A, tail: MySet[A]) extends MySet[A] {
   override def contains(elem: A): Boolean = elem == head || tail.contains(elem)
@@ -111,7 +128,8 @@ case class NonEmptySet[A](head: A, tail: MySet[A]) extends MySet[A] {
     else tail - elem + head
 
 
-  override def --(anotherSet: MySet[A]): MySet[A] = filter(x => !anotherSet(x))
+//  override def --(anotherSet: MySet[A]): MySet[A] = filter(x => !anotherSet(x))
+  override def --(anotherSet: MySet[A]): MySet[A] = filter(!anotherSet) // Thanks to the ! unary operator
 //  override def --(anotherSet: MySet[A]): MySet[A] = {
 //    if (anotherSet.contains(head)) tail -- anotherSet - head
 //    else tail -- anotherSet + head
@@ -122,7 +140,7 @@ case class NonEmptySet[A](head: A, tail: MySet[A]) extends MySet[A] {
 //    filter(x => anotherSet(x)) // Because the apply method of MySet
     filter(anotherSet) // Because Filer receives another function
 
-  override def unary_! : MySet[A] = ???
+  override def unary_! : MySet[A] = PropertyBasedSet[A](x => !this.contains(x))
 }
 
 object MySet {
@@ -150,5 +168,14 @@ object MySetPlayground extends App{
   s & MySet(3,6,7,4) foreach println
   println()
   s -- MySet(3,6,7,4) foreach println
+  println()
+  val negative = !s // s.unary_! = All the naturals not equal to 1,2,3,4
+  println(negative(2)) // False. 2 is not in the negative set
+  println(negative(5)) // True. 5 is in the negative set
 
+  val negativeEven = negative.filter(_ % 2 == 0)
+  println(negativeEven(5))
+
+  val negativeEven5 = negativeEven + 5 // all the even numbers > 4 + 5
+  println(negativeEven5(5))
 }
