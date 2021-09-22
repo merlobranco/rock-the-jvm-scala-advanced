@@ -74,24 +74,24 @@ object Intro extends App {
     override def toString: String = "" + amount
   }
 
-  def buy(@volatile account: BankAccount, thing: String, price: Int) = {
+  def buy(/*@volatile*/ account: BankAccount, thing: String, price: Int) = {
     account.amount -= price // This operation is not atomic
 //    println("I've bought " + thing)
 //    println("My account is now " + account)
   }
 
 
-  for (_ <- 1 to 10000) {
-    val account = new BankAccount(50000)
-    val thread1 = new Thread(() => buy(account, "shoes", 3000))
-    val thread2 = new Thread(() => buy(account, "iPhone12", 4000))
-
-    thread1.start()
-    thread2.start()
-    Thread.sleep(10)
-    if (account.amount != 43000) println("AHA: " + account.amount)
+//  for (_ <- 1 to 10000) {
+//    val account = new BankAccount(50000)
+//    val thread1 = new Thread(() => buy(account, "shoes", 3000))
+//    val thread2 = new Thread(() => buy(account, "iPhone12", 4000))
+//
+//    thread1.start()
+//    thread2.start()
+//    Thread.sleep(10)
+//    if (account.amount != 43000) println("AHA: " + account.amount)
 //    println
-  }
+//  }
 
   /*
     thread1 (shoes): 50000
@@ -124,21 +124,55 @@ object Intro extends App {
       Thread1 -> Thread2 -> Thread3 -> ...
       println("Hello from thread #n")
       in REVERSE ORDER
+  */
 
+  def inceptionThreads(maxThreads: Int, i: Int = 1): Thread = new Thread(() => {
+    if (i < maxThreads) {
+      val newThread = inceptionThreads(maxThreads, i + 1)
+      newThread.start()
+      newThread.join()
+    }
+    println(s"Hello from thread $i")
+  })
+
+  inceptionThreads(50).start()
+  /*
     2) Considering the code bellow
-      1) What is the biggest value possible for x?
-      2) What is the SMALLEST value possible for x?
+      1) What is the biggest value possible for x? 100
+      2) What is the SMALLEST value possible for x? 1
+
+      Thread1: x = 0
+      Thread2: x = 0
+      ...
+      Thread100: x = 0
+
+      For all threads: x = 1 and write back to x
    */
   var x = 0
   val threads = (1 to 100).map(_ => new Thread(() => x +=1))
   threads.foreach(_.start())
+  threads.foreach(_.join()) // It does not guarantee the values is going to be 100
+  println(x)
+
 
 
   /*
     3) Sleep fallacy
-      What's the value of message?
-      Is it guaranteed?
+      What's the value of message? Almost always Scala is awesome
+      Is it guaranteed? NO
       Why? Why not
+
+      (Main thread)
+        message = "Scala sucks"
+        awesomeThread.start()
+        sleep() - relieves execution
+      (Awesome thread)
+        sleep() - relieves execution
+      (OS gives the CPU to some important thread - takes CPU for more than 2 seconds)
+      (OS gives the CPU back to the main thread)
+        println("Scala sucks")
+      (OS gives the CPU to Awesome Thread)
+        message = "Scala is Awesome"
    */
   var message = ""
   val awesomeThread = new Thread(() => {
@@ -148,6 +182,9 @@ object Intro extends App {
 
   message = "Scala sucks"
   awesomeThread.start()
+  // For guaranteeing always the message of the Awesome Thread will be written.
+  // Synchronized is not a valid option here since the sequential programming of this code
+  awesomeThread.join()
   Thread.sleep(2000)
   println(message)
 }
