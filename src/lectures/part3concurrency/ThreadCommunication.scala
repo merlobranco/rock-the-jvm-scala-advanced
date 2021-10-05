@@ -1,5 +1,8 @@
 package lectures.part3concurrency
 
+import scala.collection.mutable
+import scala.util.Random
+
 object ThreadCommunication extends App {
 
   /*
@@ -74,5 +77,53 @@ object ThreadCommunication extends App {
     producer.start()
   }
 
-  secondApproach()
+//  secondApproach()
+
+  /*
+    The Producer-Consumer Problem with Buffer
+
+    Producer -> [ X X X ] -> Consumer
+   */
+
+  def thirdApproach(): Unit = {
+    val buffer: mutable.Queue[Int] = new mutable.Queue[Int]
+    val capacity = 3
+    val r = Random
+
+    val consumer = new Thread(() => {
+      while(true) {
+        buffer.synchronized {
+          if (buffer.isEmpty) {
+            println("[Consumer] I am waiting. Buffer empty...")
+            buffer.wait()
+          }
+          println("[Consumer] I have consumed " + buffer.dequeue())
+          buffer.notify()
+        }
+        Thread.sleep(r.nextInt(500))
+      }
+
+    })
+
+    val producer = new Thread(() => {
+      while(true) {
+        buffer.synchronized {
+          if (buffer.size == capacity) {
+            println("[Producer] I am waiting. Buffer full...")
+            buffer.wait()
+          }
+          val x = r.nextInt(100)
+          println("[Producer] I have produced " + x)
+          buffer.enqueue(x)
+          buffer.notify()
+        }
+        Thread.sleep(r.nextInt(250))
+      }
+    })
+
+    consumer.start()
+    producer.start()
+  }
+
+  thirdApproach()
 }
