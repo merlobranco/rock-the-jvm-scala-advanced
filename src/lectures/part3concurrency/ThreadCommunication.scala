@@ -102,7 +102,6 @@ object ThreadCommunication extends App {
         }
         Thread.sleep(r.nextInt(500))
       }
-
     })
 
     val producer = new Thread(() => {
@@ -125,5 +124,60 @@ object ThreadCommunication extends App {
     producer.start()
   }
 
-  thirdApproach()
+//  thirdApproach()
+
+  /*
+    The Producer-Consumer Problem with Buffer and several producers and consumers
+
+    Producer1..N -> [ X X X ] -> Consumer1..N
+   */
+
+  class Consumer(id: Int, buffer: mutable.Queue[Int]) extends Thread {
+    override def run()
+    {
+      // We need to double check the status of the buffer after waking up
+      while(true) {
+        buffer.synchronized {
+          while (buffer.isEmpty) {
+            println(s"[Consumer $id] I am waiting. Buffer empty...")
+            buffer.wait()
+          }
+          println(s"[Consumer $id] I have consumed " + buffer.dequeue())
+          buffer.notify()
+        }
+        Thread.sleep(Random.nextInt(500))
+      }
+    }
+  }
+
+  class Producer(id: Int, buffer: mutable.Queue[Int], capacity: Int) extends Thread {
+    override def run()
+    {
+      while(true) {
+        buffer.synchronized {
+          // We need to double check the status of the buffer after waking up
+          while (buffer.size == capacity) {
+            println(s"[Producer $id] I am waiting. Buffer full...")
+            buffer.wait()
+          }
+          val x = Random.nextInt(100)
+          println(s"[Producer $id] I have produced " + x)
+          buffer.enqueue(x)
+          buffer.notify()
+        }
+        Thread.sleep(Random.nextInt(500))
+      }
+    }
+  }
+
+  def fourthApproach(nConsumers: Int, nProducers: Int): Unit = {
+    val buffer: mutable.Queue[Int] = new mutable.Queue[Int]
+    val capacity = 3
+
+    (1 to nConsumers).foreach(x => new Consumer(x, buffer).start())
+    (1 to nProducers).foreach(x => new Producer(x, buffer, capacity).start())
+  }
+
+  fourthApproach(3,3)
 }
+
