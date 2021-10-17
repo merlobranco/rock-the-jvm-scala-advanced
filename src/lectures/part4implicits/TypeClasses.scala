@@ -54,7 +54,7 @@ object TypeClasses extends App {
     def serialize(value: T): String
   }
 
-  object UserSerializer extends HTMLSerializer[User] {
+  implicit object UserSerializer extends HTMLSerializer[User] {
     override def serialize(user: User): String = s"<div>${user.name} (${user.age} years old) <a href=${user.email}/> </div>"
   }
 
@@ -81,6 +81,10 @@ object TypeClasses extends App {
     def action(value: T): String
   }
 
+  object MyTypeClassTemplate {
+    def apply[T](implicit instance: MyTypeClassTemplate[T]) = instance
+  }
+
   /**
    * Equality
    */
@@ -94,7 +98,7 @@ object TypeClasses extends App {
     override def apply(user: User, user2: User): Boolean = user.age == user2.age
   }
 
-  object IsEqualByName extends Equal[User] {
+  implicit object IsEqualByName extends Equal[User] {
 //    override def isEqual(user: User, user2: User): Boolean = user.name == user2.name
     override def apply(user: User, user2: User): Boolean = user.name == user2.name
   }
@@ -105,4 +109,38 @@ object TypeClasses extends App {
 //  println(s"Equal by age: ${IsEqualByAge.isEqual(john, carol)}")
   println(s"Equal by name: ${IsEqualByName(john, carol)}")
   println(s"Equal by age: ${IsEqualByAge(john, carol)}")
+
+  // Part 2
+  object HTMLSerializer {
+    def serialize[T](value: T)(implicit serializer: HTMLSerializer[T]): String =
+      serializer.serialize(value)
+
+    def apply[T](implicit serializer: HTMLSerializer[T]) = serializer
+  }
+
+  implicit object IntSerializer extends HTMLSerializer[Int] {
+    override def serialize(value: Int): String = s"<div style: \"color=blue\">$value</div>"
+  }
+
+  println(HTMLSerializer.serialize(42))
+  println(HTMLSerializer.serialize(john))
+
+  // We have access to the serialize method and the own User type methods as well
+  println(HTMLSerializer[User].serialize(john)) // This is possible thanks to the apply method
+
+  /*
+    Exercise: Implement the Type Class pattern for the Equality Type Class
+   */
+
+  object Equal {
+    def apply[T](a: T, b: T)(implicit equalizer: Equal[T]) = equalizer(a, b)
+  }
+
+  /*
+    This is an example of a AD-HOC polymorphism
+    If we have to distinct or potentially unrelated types have Equalizers implemented,
+    we could call the Equal thing of them regardless of their types
+    Depending of the values being compared the compiler takes care of fetching the correct Type class instance for our types.
+   */
+  println(s"Implicit Equal result: ${Equal(john, carol)}")
 }
