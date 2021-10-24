@@ -71,45 +71,6 @@ object TypeClasses extends App {
     override def serialize(user: User): String = s"<div>${user.name}</div>"
   }
 
-  /*
-    TYPE CLASS
-    Defines a collection of operations that could be apply to a certain type
-    All the implementers of the Type class are called Type Class instances
-   */
-  // TYPE CLASS TEMPLATE
-  trait MyTypeClassTemplate[T] {
-    def action(value: T): String
-  }
-
-  object MyTypeClassTemplate {
-    def apply[T](implicit instance: MyTypeClassTemplate[T]) = instance
-  }
-
-  /**
-   * Equality
-   */
-  trait Equal[T] {
-//    def isEqual(value: T, value2: T): Boolean
-    def apply(value: T, value2: T): Boolean
-  }
-
-  object IsEqualByAge extends Equal[User] {
-//    override def isEqual(user: User, user2: User): Boolean = user.age == user2.age
-    override def apply(user: User, user2: User): Boolean = user.age == user2.age
-  }
-
-  implicit object IsEqualByName extends Equal[User] {
-//    override def isEqual(user: User, user2: User): Boolean = user.name == user2.name
-    override def apply(user: User, user2: User): Boolean = user.name == user2.name
-  }
-
-  val carol = User("Carol", 32, "carol@rockthejvm.com")
-
-//  println(s"Equal by name: ${IsEqualByName.isEqual(john, carol)}")
-//  println(s"Equal by age: ${IsEqualByAge.isEqual(john, carol)}")
-  println(s"Equal by name: ${IsEqualByName(john, carol)}")
-  println(s"Equal by age: ${IsEqualByAge(john, carol)}")
-
   // Part 2
   object HTMLSerializer {
     def serialize[T](value: T)(implicit serializer: HTMLSerializer[T]): String =
@@ -128,19 +89,64 @@ object TypeClasses extends App {
   // We have access to the serialize method and the own User type methods as well
   println(HTMLSerializer[User].serialize(john)) // This is possible thanks to the apply method
 
+  // Part 3
+  implicit class HTMLEnrichment[T](value: T) {
+//    def toHTML(serializer: HTMLSerializer[T]): String = serializer.serialize(value)
+    def toHTML(implicit serializer: HTMLSerializer[T]): String = serializer.serialize(value)
+  }
+
+//  println(john.toHTML(UserSerializer))
+  println(john.toHTML)
+
   /*
-    Exercise: Implement the Type Class pattern for the Equality Type Class
+    This last approach is very handy for the following reasons:
+
+      - We could extend the functionality to new types
+      - We could several implementations for the same type.
+        We could choose implementation either importing the implicit serializer into the local scope
+        or passing it explicitly
+      - Super expressive!
    */
 
-  object Equal {
-    def apply[T](a: T, b: T)(implicit equalizer: Equal[T]) = equalizer(a, b)
+  println(2.toHTML)
+  println(john.toHTML(PartialUserSerializer))
+
+  /*
+    The Type class pattern is composed for several parts:
+
+      1) Type Class itself with all the functionality we want to expose
+        Ej. HTMLSerializer[T] { .. }
+
+      2) The Type class instances, some of which are implicit
+        Ej. UserSerializer, IntSerializer PartialUserSerializer
+
+      3) Conversion with implicit classes, that later will allow us to use out Type class instances as implicit parameters
+        Ej. HMTLEnrichment
+   */
+
+  /*
+    Context bounds
+   */
+  def htmlBoilerPlate[T](content: T)(implicit serializer: HTMLSerializer[T]): String =
+    s"<html><body>${content.toHTML(serializer)}</body></html>"
+
+  /*
+    Here we have a context bound that is telling to the compiler to inject an implicit parameter of type HTMLSerializer[T]
+    The advantage is the short syntax, but we cannot use serializer by name, because the compiler injects it for us
+   */
+  def htmlSugar[T : HTMLSerializer](content: T): String = {
+    // Now with this approach we could use serializer by name
+    val serializer = implicitly[HTMLSerializer[T]]
+    // Use serializer
+    s"<html><body>${content.toHTML(serializer)}</body></html>"
   }
 
   /*
-    This is an example of a AD-HOC polymorphism
-    If we have to distinct or potentially unrelated types have Equalizers implemented,
-    we could call the Equal thing of them regardless of their types
-    Depending of the values being compared the compiler takes care of fetching the correct Type class instance for our types.
+    Implicitly
    */
-  println(s"Implicit Equal result: ${Equal(john, carol)}")
+  case class Permissions(mask: String)
+  implicit val defaultPermissions = Permissions("0744")
+
+  // In some other part of the code we want to surface out what is the implicit value for permission
+  val standardPerms = implicitly[Permissions]
 }
