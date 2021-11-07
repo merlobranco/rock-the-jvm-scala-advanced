@@ -125,4 +125,84 @@ object Variance extends App {
     - Method arguments are in CONTRAVARIANT POSITION
     - Return types are in COVARIANT POSITION
    */
+
+  /*
+    EXERCISES
+
+
+    Design Parking application for illegal parking
+
+    1) Implement Invariant, Covariant, Contravariant version of
+      Parking[T](things: List[T]) {
+        park(vehicle: T)
+        impound(vehicles: List[T])
+        checkVehicles(conditions: String): List[T]
+      }
+
+    2) Imagine instead of using List Scala type we use someone else API
+
+      Invariant list IList[T]
+
+    3) Parking should be a monad!
+      - flapMap
+   */
+  class Vehicle
+  class Bike extends Vehicle
+  class Car extends Vehicle
+  class IList[T]
+
+  class CParking[+T](things: List[T]) {
+    def park[S >: T](vehicle: S): CParking[S] = ???
+    def impound[S >: T](vehicles: List[S]): CParking[S] = ??? // Widening
+    def checkVehicles(conditions: String): List[T] = ???
+
+    def flatMap[S](f: T => CParking[S]): CParking[S] = ???
+  }
+
+  class IParking[T](things: List[T]) {
+    def park(vehicle: T): IParking[T] = ???
+    def impound(vehicles: List[T]): IParking[T] = ???
+    def checkVehicles(conditions: String): List[T] = ???
+
+    def flatMap[S](f: T => IParking[S]): IParking[S] = ???
+  }
+
+  class XParking[-T](things: List[T]) {
+    def park(vehicle: T): XParking[T] = ???
+    def impound(vehicles: List[T]): XParking[T] = ???
+    def checkVehicles[S <: T](conditions: String): List[S] = ???
+
+//    def flatMap[S](f: T => XParking[S]): XParking[S] = ???
+//    def flatMap[S](f: Function1[T, XParking[S]]): XParking[S] = ???
+    def flatMap[R <: T, S](f: Function1[R, XParking[S]]): XParking[S] = ???
+  }
+
+  /*
+    RULE of THUMB
+    - Use covariance => When we are dealing with a COLLECTION OF THINGS
+    - Use contravariance => When we want to deal with a GROUP OF ACTIONS we want to perform on our types
+
+    In this case we will go for XParking because we want a group of actions over the vehicles
+   */
+
+  class CParking2[+T](things: IList[T]) {
+    def park[S >: T](vehicle: S): CParking2[S] = ???
+    def impound[S >: T](vehicles: IList[S]): CParking2[S] = ??? // Widening
+    def checkVehicles[S >: T](conditions: String): IList[S] = ???
+  }
+
+  class IParking2[T](things: IList[T]) {
+    def park(vehicle: T): IParking2[T] = ???
+    def impound(vehicles: IList[T]): IParking2[T] = ???
+    def checkVehicles(conditions: String): IList[T] = ???
+  }
+
+  class XParking2[-T](things: IList[T]) {
+    def park(vehicle: T): XParking2[T] = ???
+    def impound[S <: T](vehicles: IList[S]): XParking2[S] = ???
+    def checkVehicles[S <: T](conditions: String): IList[S] = ???
+  }
+
+
+
 }
